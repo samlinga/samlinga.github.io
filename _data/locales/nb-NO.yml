@@ -1,0 +1,91 @@
+# Layout-tekst for nettstedet
+
+# ----- Felles etiketter -----
+
+layout:
+  post: Innlegg
+  category: Kategori
+  tag: Stikkord
+
+# Fanene i sidepanelet
+tabs:
+  # format: <filename_without_extension>: <value>
+  home: Hjem
+  categories: Kategorier
+  tags: Stikkord
+  archives: Arkiv
+  about: Om
+
+# Teksten som vises i søkefeltet og søkeresultatene
+search:
+  hint: søk
+  cancel: Avbryt
+  no_results: Oops! Ingen resultater funnet.
+
+panel:
+  lastmod: Nylig oppdatert
+  trending_tags: Populære stikkord
+  toc: Innhold
+
+copyright:
+  # Vises nederst i innlegget
+  license:
+    template: Dette innlegget er lisensiert under :LICENSE_NAME av forfatteren.
+    name: CC BY 4.0
+    link: https://creativecommons.org/licenses/by/4.0/
+
+  # Vises i bunnteksten
+  brief: Noen rettigheter reservert.
+  verbose: >-
+    Med mindre annet er angitt, er blogginnleggene på dette nettstedet lisensiert
+    under Creative Commons Attribution 4.0 International (CC BY 4.0) lisens av forfatteren.
+
+meta: Bruker :THEME tema for :PLATFORM.
+
+not_found:
+  statement: Beklager, vi har mistet den URL-en eller den peker til noe som ikke eksisterer.
+
+notification:
+  update_found: En ny versjon av innholdet er tilgjengelig.
+  update: Oppdater
+
+# ----- Innlegg relaterte etiketter -----
+
+post:
+  written_by: Av
+  posted: Publisert
+  updated: Oppdatert
+  words: ord
+  pageview_measure: visninger
+  read_time:
+    unit: min
+    prompt: les
+  relate_posts: Videre lesing
+  share: Del
+  button:
+    next: Nyere
+    previous: Eldre
+    copy_code:
+      succeed: Kopiert!
+    share_link:
+      title: Kopier lenke
+      succeed: Lenke kopiert!
+
+# Dato- og tidsformat.
+# Se: <http://strftime.net/>, <https://day.js.org/docs/en/display/format>
+df:
+  post:
+    strftime: "%b %e, %Y"
+    dayjs: "ll"
+  archives:
+    strftime: "%b"
+    dayjs: "MMM"
+
+# Kategoriside
+categories:
+  category_measure:
+    singular: kategori
+    plural: kategorier
+  post_measure:
+    singular: innlegg
+    plural: innlegg
