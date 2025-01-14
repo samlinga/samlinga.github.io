@@ -16,7 +16,6 @@ lorem ipsum galle afealfij øalsdjføaoiew aøoiefoef aølsfkjaopw jawf hei hå 
 äsdfljaøls fajs dfjaofaoewiøajs flkjafølasødlfl øjsaaowiejoaijsfløajsd føoai wasældf.
 
 
-![img-description](/_data/media/frog.png)
+![img-description](/media/frog.png)
 _Frosk_
-
 
