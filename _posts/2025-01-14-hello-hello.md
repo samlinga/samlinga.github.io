@@ -18,10 +18,3 @@ lorem ipsum galle afealfij øalsdjføaoiew aøoiefoef aølsfkjaopw jawf hei hå 
 
 ![img-description](/media/frog.png)
 _Frosk_
-
-
-{% 
-    include embed/audio.html
-    src='/media/lyd.mp3'
-    title='Lyd fil test'
-%}
