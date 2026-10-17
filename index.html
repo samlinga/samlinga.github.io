@@ -8,7 +8,8 @@
   <meta name="theme-color" content="#f4f0e6">
   <!--
     Planen leses fra det publiserte Google-arket.
-    Kolonner: dato (eller Tid med en dato), sted, kommentar. Klokkeslett er valgfritt.
+    Kolonner: Tid, Klokkeslett, Sted, Kommentar, Ikke forsamling.
+    Ikke forsamling er TRUE eller FALSE. Kommentaren vises bare når den er fylt ut.
   -->
   <style>
     :root {
@@ -64,13 +65,26 @@
       border-color: #c9d5cc;
       box-shadow: inset 4px 0 0 var(--bar);
     }
-    .etikett {
+    .kort.uten {
+      background: #f4f6f7;
+      border-color: #d3dde3;
+      box-shadow: inset 4px 0 0 #5e7384;
+    }
+    .etiketter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem 0.9rem;
       margin: 0 0 0.35rem;
+    }
+    .etikett {
+      margin: 0;
       color: var(--bar);
       font-size: 0.78rem;
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
+    .etikett.uten { color: #4d6272; }
+    .kort.uten .kommentar { color: var(--blekk); }
     .dato {
       margin: 0;
       font-size: 1.45rem;
@@ -108,7 +122,7 @@
   <div class="ramme">
     <p class="merke">Samlinga</p>
     <h1>Søndagssamlinger</h1>
-    <p class="intro">Tid, sted og en kort kommentar for hver samling.</p>
+    <p class="intro">Tid, sted og en kort kommentar.</p>
     <main id="innhold">
       <p class="tom">Laster planen…</p>
     </main>
@@ -160,8 +174,16 @@
     }
 
     function kort(samling, erNeste, nivaa) {
-      const art = el("article", erNeste ? "kort neste" : "kort");
-      if (erNeste) art.append(el("p", "etikett", "Neste samling"));
+      const klasser = ["kort"];
+      if (erNeste) klasser.push("neste");
+      if (samling.ikkeForsamling) klasser.push("uten");
+      const art = el("article", klasser.join(" "));
+      if (erNeste || samling.ikkeForsamling) {
+        const merker = el("div", "etiketter");
+        if (erNeste) merker.append(el("p", "etikett", samling.ikkeForsamling ? "Neste" : "Neste samling"));
+        if (samling.ikkeForsamling) merker.append(el("p", "etikett uten", "Ikke forsamling"));
+        art.append(merker);
+      }
       art.append(el(nivaa, "dato", formatDato(samling.dato)));
       const biter = [];
       const tid = formatTid(samling.tid);
@@ -315,11 +337,12 @@
         return String(navn || "").trim().toLowerCase().replace(/\s+/g, " ");
       });
       const data = forsteErData ? rader : rader.slice(1);
-      const indeks = { dato: -1, tid: -1, sted: -1, kommentar: -1 };
+      const indeks = { dato: -1, tid: -1, sted: -1, kommentar: -1, ikke: -1 };
       header.forEach(function (navn, i) {
         if (/^(dato|date)\b/.test(navn)) indeks.dato = i;
         else if (/^(sted|plass|place|lokasjon)\b/.test(navn)) indeks.sted = i;
         else if (/^(kommentar|merknad|note|beskjed)\b/.test(navn)) indeks.kommentar = i;
+        else if (/ikke\s*forsamling/.test(navn)) indeks.ikke = i;
         else if (/^(tid|klokkeslett|kl)\b/.test(navn)) indeks.tid = i;
       });
       if (indeks.tid >= 0) {
@@ -338,11 +361,13 @@
       return data.map(function (rad) {
         const delt = splittDatoTid(rad[indeks.dato]);
         const tidCelle = indeks.tid >= 0 ? normaliserTid(rad[indeks.tid]) : "";
+        const merke = indeks.ikke >= 0 ? rad[indeks.ikke] : "";
         return {
           dato: delt.dato,
           tid: tidCelle || delt.tid,
           sted: rad[indeks.sted] || "",
-          kommentar: rad[indeks.kommentar] || ""
+          kommentar: rad[indeks.kommentar] || "",
+          ikkeForsamling: /^(1|true|sann|ja|yes|x)$/i.test(String(merke || "").trim())
         };
       }).filter(function (samling) { return samling.dato; });
     }
