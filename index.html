@@ -8,8 +8,8 @@
   <meta name="theme-color" content="#f4f0e6">
   <!--
     Planen leses fra det publiserte Google-arket.
-    Kolonner: Tid, Klokkeslett, Sted, Kommentar, Ikke forsamling.
-    Ikke forsamling er TRUE eller FALSE. Kommentaren vises bare når den er fylt ut.
+    Kolonner: Tid, Klokkeslett, Sted, Kommentar, Ikke forsamling, Ansvar for varme.
+    Ikke forsamling er TRUE eller FALSE. Kommentar og varme vises bare når de er fylt ut.
   -->
   <style>
     :root {
@@ -99,6 +99,11 @@
       margin: 0.7rem 0 0;
       color: var(--dempet);
       white-space: pre-wrap;
+    }
+    .varme {
+      margin: 0.55rem 0 0;
+      color: var(--dempet);
+      font-size: 0.98rem;
     }
     .tom {
       margin: 2rem 0 0;
@@ -192,6 +197,9 @@
       if (biter.length) art.append(el("p", "meta", biter.join(" · ")));
       if (samling.kommentar && String(samling.kommentar).trim()) {
         art.append(el("p", "kommentar", String(samling.kommentar).trim()));
+      }
+      if (samling.varme && String(samling.varme).trim()) {
+        art.append(el("p", "varme", "Ansvar for varme: " + String(samling.varme).trim()));
       }
       return art;
     }
@@ -337,12 +345,13 @@
         return String(navn || "").trim().toLowerCase().replace(/\s+/g, " ");
       });
       const data = forsteErData ? rader : rader.slice(1);
-      const indeks = { dato: -1, tid: -1, sted: -1, kommentar: -1, ikke: -1 };
+      const indeks = { dato: -1, tid: -1, sted: -1, kommentar: -1, ikke: -1, varme: -1 };
       header.forEach(function (navn, i) {
         if (/^(dato|date)\b/.test(navn)) indeks.dato = i;
         else if (/^(sted|plass|place|lokasjon)\b/.test(navn)) indeks.sted = i;
         else if (/^(kommentar|merknad|note|beskjed)\b/.test(navn)) indeks.kommentar = i;
         else if (/ikke\s*forsamling/.test(navn)) indeks.ikke = i;
+        else if (/ansvar\s*for\s*varme|^varme$/.test(navn)) indeks.varme = i;
         else if (/^(tid|klokkeslett|kl)\b/.test(navn)) indeks.tid = i;
       });
       if (indeks.tid >= 0) {
@@ -367,6 +376,7 @@
           tid: tidCelle || delt.tid,
           sted: rad[indeks.sted] || "",
           kommentar: rad[indeks.kommentar] || "",
+          varme: indeks.varme >= 0 ? rad[indeks.varme] || "" : "",
           ikkeForsamling: /^(1|true|sann|ja|yes|x)$/i.test(String(merke || "").trim())
         };
       }).filter(function (samling) { return samling.dato; });
