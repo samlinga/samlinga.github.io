@@ -7,9 +7,8 @@
   <meta name="description" content="Plan for kommende samlinger: tid, sted og kommentar.">
   <meta name="theme-color" content="#f4f0e6">
   <!--
-    Planen ligger i samlinger.json:
-    { "samlinger": [ { "dato": "2026-10-18", "tid": "11:00", "sted": "Bedehuset", "kommentar": "" } ] }
-    dato er YYYY-MM-DD. Tom liste er gyldig.
+    Planen leses fra det publiserte Google-arket.
+    Kolonner: dato (eller Tid med en dato), sted, kommentar. Klokkeslett er valgfritt.
   -->
   <style>
     :root {
@@ -208,12 +207,154 @@
       }
     }
 
-    fetch("samlinger.json", { cache: "no-cache" })
+    const ARK = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9Jkorah8VvOVucrYbqIAzC8_xbpLAKXnIQ9ssW0rivUAiVfekSlKs6AUcAYCHAEN9211qs1x_v0ar/pub?gid=0&single=true&output=csv";
+
+    function parseCsv(tekst) {
+      const rader = [];
+      let rad = [];
+      let felt = "";
+      let i = 0;
+      let iSitat = false;
+      const kilde = String(tekst || "").replace(/^\uFEFF/, "");
+      while (i < kilde.length) {
+        const tegn = kilde[i];
+        if (iSitat) {
+          if (tegn === '"') {
+            if (kilde[i + 1] === '"') {
+              felt += '"';
+              i += 2;
+              continue;
+            }
+            iSitat = false;
+            i += 1;
+            continue;
+          }
+          felt += tegn;
+          i += 1;
+          continue;
+        }
+        if (tegn === '"') {
+          iSitat = true;
+          i += 1;
+          continue;
+        }
+        if (tegn === ",") {
+          rad.push(felt);
+          felt = "";
+          i += 1;
+          continue;
+        }
+        if (tegn === "\n" || tegn === "\r") {
+          if (tegn === "\r" && kilde[i + 1] === "\n") i += 1;
+          rad.push(felt);
+          felt = "";
+          if (rad.some(function (verdi) { return verdi.trim() !== ""; })) rader.push(rad);
+          rad = [];
+          i += 1;
+          continue;
+        }
+        felt += tegn;
+        i += 1;
+      }
+      if (felt !== "" || rad.length) {
+        rad.push(felt);
+        if (rad.some(function (verdi) { return verdi.trim() !== ""; })) rader.push(rad);
+      }
+      return rader;
+    }
+
+    function isoDato(aar, maaned, dag) {
+      const y = Number(aar);
+      const m = Number(maaned);
+      const d = Number(dag);
+      if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+      const dato = new Date(Date.UTC(y, m - 1, d));
+      if (dato.getUTCFullYear() !== y || dato.getUTCMonth() !== m - 1 || dato.getUTCDate() !== d) return null;
+      return String(y).padStart(4, "0") + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    }
+
+    function parseDato(verdi) {
+      const tekst = String(verdi || "").trim();
+      let treff = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tekst);
+      if (treff) return isoDato(treff[1], treff[2], treff[3]);
+      treff = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(tekst);
+      if (treff) return isoDato(treff[3], treff[2], treff[1]);
+      treff = /^(\d{1,2})\.(\d{1,2})\.(\d{2})$/.exec(tekst);
+      if (treff) {
+        const kort = Number(treff[3]);
+        return isoDato(kort >= 70 ? 1900 + kort : 2000 + kort, treff[2], treff[1]);
+      }
+      treff = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(tekst);
+      if (treff) return isoDato(treff[3], treff[2], treff[1]);
+      return null;
+    }
+
+    function erKlokkeslett(verdi) {
+      return /^\d{1,2}[:.]\d{2}(:\d{2})?$/.test(String(verdi || "").trim());
+    }
+
+    function normaliserTid(verdi) {
+      const treff = /^(\d{1,2})[:.](\d{2})(?::\d{2})?$/.exec(String(verdi || "").trim());
+      if (!treff) return "";
+      return String(treff[1]).padStart(2, "0") + ":" + treff[2];
+    }
+
+    function splittDatoTid(verdi) {
+      const tekst = String(verdi || "").trim();
+      const treff = /^(.*?)(?:\s+|T)(\d{1,2}[:.]\d{2}(?::\d{2})?)$/.exec(tekst);
+      if (treff && parseDato(treff[1].trim())) {
+        return { dato: parseDato(treff[1].trim()), tid: normaliserTid(treff[2]) };
+      }
+      return { dato: parseDato(tekst), tid: "" };
+    }
+
+    function raderTilSamlinger(rader) {
+      if (!rader.length) return [];
+      const forsteErData = Boolean(splittDatoTid(rader[0][0]).dato);
+      const header = forsteErData ? [] : rader[0].map(function (navn) {
+        return String(navn || "").trim().toLowerCase().replace(/\s+/g, " ");
+      });
+      const data = forsteErData ? rader : rader.slice(1);
+      const indeks = { dato: -1, tid: -1, sted: -1, kommentar: -1 };
+      header.forEach(function (navn, i) {
+        if (/^(dato|date)\b/.test(navn)) indeks.dato = i;
+        else if (/^(sted|plass|place|lokasjon)\b/.test(navn)) indeks.sted = i;
+        else if (/^(kommentar|merknad|note|beskjed)\b/.test(navn)) indeks.kommentar = i;
+        else if (/^(tid|klokkeslett|kl)\b/.test(navn)) indeks.tid = i;
+      });
+      if (indeks.tid >= 0) {
+        const prover = data.map(function (rad) { return rad[indeks.tid]; }).filter(Boolean);
+        const antallDato = prover.filter(function (verdi) { return splittDatoTid(verdi).dato; }).length;
+        const antallTid = prover.filter(erKlokkeslett).length;
+        if (antallDato > antallTid) {
+          if (indeks.dato < 0) indeks.dato = indeks.tid;
+          indeks.tid = -1;
+        }
+      }
+      if (indeks.dato < 0) indeks.dato = 0;
+      if (indeks.sted < 0) indeks.sted = 1;
+      if (indeks.kommentar < 0) indeks.kommentar = 2;
+
+      return data.map(function (rad) {
+        const delt = splittDatoTid(rad[indeks.dato]);
+        const tidCelle = indeks.tid >= 0 ? normaliserTid(rad[indeks.tid]) : "";
+        return {
+          dato: delt.dato,
+          tid: tidCelle || delt.tid,
+          sted: rad[indeks.sted] || "",
+          kommentar: rad[indeks.kommentar] || ""
+        };
+      }).filter(function (samling) { return samling.dato; });
+    }
+
+    fetch(ARK, { cache: "no-cache" })
       .then(function (svar) {
         if (!svar.ok) throw new Error(String(svar.status));
-        return svar.json();
+        return svar.text();
       })
-      .then(vis)
+      .then(function (tekst) {
+        vis({ samlinger: raderTilSamlinger(parseCsv(tekst)) });
+      })
       .catch(function () {
         innhold.replaceChildren(el("p", "tom", "Planen kunne ikke lastes."));
       });
