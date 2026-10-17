@@ -1,4 +1,222 @@
----
-layout: home
-# Index page
----
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Samlinga</title>
+  <meta name="description" content="Plan for kommende samlinger: tid, sted og kommentar.">
+  <meta name="theme-color" content="#f4f0e6">
+  <!--
+    Planen ligger i samlinger.json:
+    { "samlinger": [ { "dato": "2026-10-18", "tid": "11:00", "sted": "Bedehuset", "kommentar": "" } ] }
+    dato er YYYY-MM-DD. Tom liste er gyldig.
+  -->
+  <style>
+    :root {
+      --papir: #f4f0e6;
+      --kort: #fffcf6;
+      --blekk: #221c16;
+      --dempet: #5e564c;
+      --linje: #e3d9c8;
+      --bar: #2f4a3c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--papir);
+      color: var(--blekk);
+      font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+      line-height: 1.45;
+    }
+    .ramme {
+      max-width: 38rem;
+      margin: 0 auto;
+      padding: 3.5rem 1.4rem 4rem;
+    }
+    .merke {
+      margin: 0 0 0.45rem;
+      font-size: 0.82rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--bar);
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .intro {
+      margin: 0.85rem 0 0;
+      max-width: 28rem;
+      color: var(--dempet);
+      font-size: 1.08rem;
+    }
+    .liste { margin-top: 2rem; }
+    .kort {
+      background: var(--kort);
+      border: 1px solid var(--linje);
+      border-radius: 14px;
+      padding: 1.15rem 1.2rem 1.2rem;
+      margin: 0 0 0.8rem;
+    }
+    .kort.neste {
+      border-color: #c9d5cc;
+      box-shadow: inset 4px 0 0 var(--bar);
+    }
+    .etikett {
+      margin: 0 0 0.35rem;
+      color: var(--bar);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .dato {
+      margin: 0;
+      font-size: 1.45rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .meta {
+      margin: 0.45rem 0 0;
+      font-size: 1.05rem;
+    }
+    .kommentar {
+      margin: 0.7rem 0 0;
+      color: var(--dempet);
+      white-space: pre-wrap;
+    }
+    .tom {
+      margin: 2rem 0 0;
+      padding-top: 1.2rem;
+      color: var(--dempet);
+      border-top: 1px solid var(--linje);
+    }
+    .seksjon {
+      margin: 2.4rem 0 0.8rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--dempet);
+      font-weight: 600;
+    }
+    .tidligere .kort { background: transparent; }
+    .tidligere .dato { font-size: 1.15rem; }
+  </style>
+</head>
+<body>
+  <div class="ramme">
+    <p class="merke">Samlinga</p>
+    <h1>Søndagssamlinger</h1>
+    <p class="intro">Tid, sted og en kort kommentar for hver samling.</p>
+    <main id="innhold">
+      <p class="tom">Laster planen…</p>
+    </main>
+    <noscript><p class="tom">Planen vises når JavaScript er slått på.</p></noscript>
+  </div>
+  <script>
+    const innhold = document.querySelector("#innhold");
+
+    function datoDeler(iso) {
+      const treff = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+      if (!treff) return null;
+      return treff[0];
+    }
+
+    function formatDato(iso) {
+      const [aar, maaned, dag] = iso.split("-").map(Number);
+      const dato = new Date(Date.UTC(aar, maaned - 1, dag));
+      const tekst = new Intl.DateTimeFormat("nb-NO", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC"
+      }).format(dato);
+      return tekst.charAt(0).toUpperCase() + tekst.slice(1);
+    }
+
+    function formatTid(tid) {
+      const tekst = String(tid || "").trim();
+      if (!tekst) return "";
+      if (/^kl\.?\s/i.test(tekst)) return tekst;
+      return "kl. " + tekst;
+    }
+
+    function iDagOslo() {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Oslo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(new Date());
+    }
+
+    function el(tag, klasse, tekst) {
+      const node = document.createElement(tag);
+      if (klasse) node.className = klasse;
+      if (tekst) node.textContent = tekst;
+      return node;
+    }
+
+    function kort(samling, erNeste, nivaa) {
+      const art = el("article", erNeste ? "kort neste" : "kort");
+      if (erNeste) art.append(el("p", "etikett", "Neste samling"));
+      art.append(el(nivaa, "dato", formatDato(samling.dato)));
+      const biter = [];
+      const tid = formatTid(samling.tid);
+      if (tid) biter.push(tid);
+      if (samling.sted && String(samling.sted).trim()) biter.push(String(samling.sted).trim());
+      if (biter.length) art.append(el("p", "meta", biter.join(" · ")));
+      if (samling.kommentar && String(samling.kommentar).trim()) {
+        art.append(el("p", "kommentar", String(samling.kommentar).trim()));
+      }
+      return art;
+    }
+
+    function vis(data) {
+      const liste = Array.isArray(data.samlinger) ? data.samlinger : [];
+      const gyldige = liste.filter(function (samling) {
+        return samling && datoDeler(samling.dato);
+      });
+      gyldige.sort(function (a, b) {
+        return (a.dato + " " + (a.tid || "")).localeCompare(b.dato + " " + (b.tid || ""));
+      });
+      const iDag = iDagOslo();
+      const kommende = gyldige.filter(function (samling) { return samling.dato >= iDag; });
+      const tidligere = gyldige.filter(function (samling) { return samling.dato < iDag; }).reverse();
+
+      innhold.replaceChildren();
+      if (!kommende.length) {
+        innhold.append(el("p", "tom", "Ingen kommende samlinger er lagt inn."));
+      } else {
+        const seksjon = el("section", "liste");
+        seksjon.setAttribute("aria-label", "Kommende samlinger");
+        kommende.forEach(function (samling, indeks) {
+          seksjon.append(kort(samling, indeks === 0, "h2"));
+        });
+        innhold.append(seksjon);
+      }
+      if (tidligere.length) {
+        const seksjon = el("section", "liste tidligere");
+        seksjon.append(el("h2", "seksjon", "Tidligere"));
+        tidligere.forEach(function (samling) {
+          seksjon.append(kort(samling, false, "h3"));
+        });
+        innhold.append(seksjon);
+      }
+    }
+
+    fetch("samlinger.json", { cache: "no-cache" })
+      .then(function (svar) {
+        if (!svar.ok) throw new Error(String(svar.status));
+        return svar.json();
+      })
+      .then(vis)
+      .catch(function () {
+        innhold.replaceChildren(el("p", "tom", "Planen kunne ikke lastes."));
+      });
+  </script>
+</body>
+</html>
